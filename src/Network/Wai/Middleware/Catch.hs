@@ -41,7 +41,14 @@
 -- > handler (e :: MyException) _ = return $ 
 -- >    responseLBS status200 [("Content-Type", "text/plain")] (pack $ show e)
 --
---   
+--   The only drawback stems from the basic advantages of Haskell - laziness. 
+--   All errors within 'Wai' 'ResponseBuilder' will not be caught. Thus, the 
+--   following code will not work:
+-- 
+-- > ... return $ responseLBS undefined ...
+-- 
+--   To ensure catch all errors, you need to consume all data /before/ feeding 
+--   the builder. 
 
 module Network.Wai.Middleware.Catch (
     protect,
@@ -65,8 +72,8 @@ import qualified Data.ByteString.Lazy.Char8 as BL (pack)
 import Network.HTTP.Types (status500)
 import Network.Wai
 
--- | Handle exceptions in responses. If exception not handled - it will be 
---   rethrown. To ensure handle all errors use 'protect''.
+-- | Handles exceptions in responses. If exception isn't handled - it will be 
+--   rethrown further. To ensure handle all errors use 'protect''.
 protect :: (E.Exception e) =>
        (e -> Application)   -- ^ Handler
     -> Middleware
