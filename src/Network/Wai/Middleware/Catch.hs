@@ -1,13 +1,51 @@
 {-# LANGUAGE FlexibleContexts, MultiParamTypeClasses, ScopedTypeVariables #-}
 
-{- | Exception handling for 'Wai' and 'Warp'.
-
-By default 'Warp' not handles exceptions well. It just log them to console. 
-  
--}
+-- | Exception handling for 'Wai' and 'Warp'.
+--
+--   By default 'Warp' not handles exceptions well. It just log them to 
+--   console. This package - an attempt to solve the problem.
+--
+-- > {-# LANGUAGE OverloadedStrings #-}
+-- > {-# LANGUAGE DeriveDataTypeable #-}
+-- > {-# LANGUAGE ScopedTypeVariables #-} 
+-- >
+-- > import Data.Typeable (Typeable)
+-- > import Control.Exception (Exception, throw)
+-- > import Network.HTTP.Types
+-- > import Network.Wai.Handler.Warp (run)
+-- > import Data.ByteString.Lazy.Char8 (pack) -- Just for an orphan instance
+-- >
+-- > import Network.Wai
+-- > import Network.Wai.Middleware.Catch
+-- >
+-- > data MyException = MyException String deriving (Show, Typeable)
+-- > instance Exception MyException
+-- >
+-- > main :: IO ()
+-- > main = do
+-- >     putStrLn $ "http://localhost:8888/"
+-- >     run 8888 $ (protect handler) $ app
+-- >     -- ... try 'protect'' and you see what /err/ request will 
+-- >     -- be handled with code 500
+-- >
+-- > app :: Application
+-- > app req = case rawPathInfo req of
+-- >     "/ok" -> return $ responseLBS status200 
+-- >                       [("Content-Type", "text/plain")] "OK"
+-- >     "/err" -> error "Error"
+-- >     "/exc" -> throw $ MyException "Raised exception"
+-- >     _ -> return $ responseLBS status200 [("Content-Type", "text/plain")] 
+-- >             "Try any of /ok, /exc, /err"
+-- >
+-- > -- Our handler
+-- > handler (e :: MyException) _ = return $ 
+-- >    responseLBS status200 [("Content-Type", "text/plain")] (pack $ show e)
+--
+--   
 
 module Network.Wai.Middleware.Catch (
-    protect
+    protect,
+    protect'
 ) where
 
 import Prelude hiding (catch)
@@ -27,15 +65,20 @@ import qualified Data.ByteString.Lazy.Char8 as BL (pack)
 import Network.HTTP.Types (status500)
 import Network.Wai
 
-{- | Allows to protect responses from exceptions.
-
-     
-
--}
+-- | Handle exceptions in responses. If exception not handled - it will be 
+--   rethrown. To ensure handle all errors use 'protect''.
 protect :: (E.Exception e) =>
-       (e -> Application)   -- ^ Handler to intercept 
+       (e -> Application)   -- ^ Handler
     -> Middleware
-protect handler app req = 
+protect handler app req = app req `catch` (`handler`req)
+
+-- | Strict version of 'protect'. Handles all exceptions. If exception not 
+--   handled, this function return /500 Internal Server Error/ with empty 
+--   headers and body what contains 'show' of error.
+protect' :: (E.Exception e) =>
+       (e -> Application)   -- ^ Handler
+    -> Middleware
+protect' handler app req = 
     app req `catch` (`handler`req) `catch` (`defHandler` req)
   where
     defHandler :: SomeException -> Application
