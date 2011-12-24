@@ -1,0 +1,32 @@
+name:           wai-middleware-catch
+version:        0.1
+cabal-version:  >= 1.8
+build-type:     Simple
+stability:      Experimental
+author:         Alexander Dorofeev
+maintainer:     aka.spin@gmail.com
+category:       Web
+license:        BSD3
+license-file:   LICENSE
+synopsis:       Wai error catching middleware
+description:    Error handling middleware for 'Wai'.
+                
+                /Note/: This package uses ideas fron not released package
+                /enumerator-exception/
+                (<https://github.com/snoyberg/enumerator-exception>)
+
+library
+  hs-source-dirs:   src
+  build-depends:   
+                   base >= 4,
+                   enumerator >= 0.4 && < 0.5,
+                   monad-control >= 0.3 && < 0.4,
+                   lifted-base >= 0.1.0.1 && < 0.2,
+                   transformers >= 0.2 && < 0.3,
+                   wai,
+                   http-types,
+                   bytestring,
+                   warp
+  ghc-options:      -Wall -rtsopts -O2
+  exposed-modules:  Network.Wai.Middleware.Catch
+
