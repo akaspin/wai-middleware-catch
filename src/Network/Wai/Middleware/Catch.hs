@@ -19,21 +19,23 @@
 
 module Network.Wai.Middleware.Catch where
 
-import Prelude hiding (catch)
+import Prelude hiding (catch, concat)
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy.Char8 as BL8
+import Data.ByteString (concat)
+import Data.ByteString.Char8 (unpack)
+import Data.ByteString.Lazy.Char8 (pack)
 
 import Control.Exception (Exception(..), SomeException)
 import Control.Exception.Lifted (Handler(..), catches)
-import Network.Wai 
-import Network.HTTP.Types
+import Network.Wai (Application, Middleware, responseLBS, Request(..))
+import Network.HTTP.Types (status500)
 
--- | Handler wrapper. 
+-- | Handler wrapper. For polymorphic exceptions.
 data ResponseHandler = forall e . Exception e => 
     ResponseHandler (e -> Application)
 
+-- | Protect 'Middleware' chain from exceptions. This acts like
+--   'catches', but uses own handler type for simplicity.
 protect :: [ResponseHandler]  -- ^ Wrapped handlers. See 'mkHandler'.
     -> Middleware
 protect handlers app req = 
@@ -52,10 +54,10 @@ mkHandler = ResponseHandler
 -- | Default handler. 
 defHandler :: ResponseHandler    
 defHandler = mkHandler (\(e::SomeException) req -> 
-    return $ responseLBS status500 [] $ BL8.pack $ 
+    return $ responseLBS status500 [] $ pack $ 
             show e ++ " : " ++ dumpRequest req)
   where
-    dumpRequest req = B8.unpack $ B.concat [requestMethod req, " ", 
+    dumpRequest req = unpack $ concat [requestMethod req, " ", 
             rawPathInfo req, rawQueryString req]
 
 
