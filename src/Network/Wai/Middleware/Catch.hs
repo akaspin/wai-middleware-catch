@@ -17,7 +17,14 @@
 --   To ensure catch all errors, you need to consume all data /before/ feeding 
 --   the builder. 
 
-module Network.Wai.Middleware.Catch where
+module Network.Wai.Middleware.Catch (
+    -- * Middleware
+    protect,
+    -- * Handlers
+    ResponseHandler(..),
+    mkHandler,
+    defHandler
+) where
 
 import Prelude hiding (catch, concat)
 
@@ -30,9 +37,6 @@ import Control.Exception.Lifted (Handler(..), catches)
 import Network.Wai (Application, Middleware, responseLBS, Request(..))
 import Network.HTTP.Types (status500)
 
--- | Handler wrapper. For polymorphic exceptions.
-data ResponseHandler = forall e . Exception e => 
-    ResponseHandler (e -> Application)
 
 -- | Protect 'Middleware' chain from exceptions. This acts like
 --   'catches', but uses own handler type for simplicity.
@@ -42,6 +46,10 @@ protect handlers app req =
     catches (app req) (wrapHandlers handlers)
   where
     wrapHandlers = fmap (\(ResponseHandler f) -> Handler (`f` req))
+
+-- | Handler wrapper. For polymorphic exceptions.
+data ResponseHandler = forall e . Exception e => 
+    ResponseHandler (e -> Application)
 
 -- | Helper for make 'RequestHandler'
 --
