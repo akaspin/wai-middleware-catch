@@ -1,5 +1,5 @@
 name:           wai-middleware-catch
-version:        0.3.1
+version:        0.3.2
 cabal-version:  >= 1.8
 build-type:     Simple
 stability:      Experimental
@@ -23,7 +23,7 @@ library
                    bytestring >= 0.9 && < 0.10,
                    lifted-base >= 0.1.0.1 && < 0.2,
                    http-types >= 0.6 && < 0.7,
-                   wai >= 1.0
+                   wai >= 1.1
   ghc-options:      -Wall -rtsopts
   exposed-modules:  Network.Wai.Middleware.Catch
 
