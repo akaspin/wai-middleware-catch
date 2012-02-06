@@ -20,6 +20,7 @@
 module Network.Wai.Middleware.Catch (
     -- * Middleware
     protect,
+    protect',
     -- * Handlers
     ResponseHandler(..),
     mkHandler,
@@ -33,21 +34,35 @@ import Data.ByteString.Char8 (unpack)
 import Data.ByteString.Lazy.Char8 (pack)
 
 import Control.Exception (Exception(..), SomeException)
-import Control.Exception.Lifted (Handler(..), catches)
+import Control.Exception.Lifted (Handler(..), catches, catch)
 import Network.Wai (Application, Middleware, responseLBS, Request(..))
 import Network.HTTP.Types (status500)
 
 
 -- | Protect 'Middleware' chain from exceptions. This acts like
 --   'catches', but uses own handler type for simplicity.
+--
+--   If an exception is not handled, it is thrown further. To handle this 
+--   use 'protect''.
 protect :: [ResponseHandler]  -- ^ Wrapped handlers. See 'mkHandler'.
     -> Middleware
 protect handlers app req = 
     catches (app req) (wrapHandlers handlers)
   where
     wrapHandlers = fmap (\(ResponseHandler f) -> Handler (`f` req))
+    
+-- | \"Harden\" version of protect. 
+protect' :: Exception e => 
+       [ResponseHandler]    -- ^ Wrapped handlers. See 'mkHandler'.
+    -> (e -> Application)   -- ^ Default handler
+    -> Middleware
+protect' handlers d app req = 
+    catch (protect handlers app req) (`d` req)
 
--- | Handler wrapper. For polymorphic exceptions.
+-- | Handler wrapper. For polymorphic exceptions. If an exception is not 
+--   handled, it is thrown to default handler. 
+--
+-- > protect' [...] defHandler
 data ResponseHandler = forall e . Exception e => 
     ResponseHandler (e -> Application)
 
@@ -60,12 +75,9 @@ mkHandler :: forall e . Exception e =>
 mkHandler = ResponseHandler
 
 -- | Default handler. 
-defHandler :: ResponseHandler    
-defHandler = mkHandler (\(e::SomeException) req -> 
-    return $ responseLBS status500 [] $ pack $ 
-            show e ++ " : " ++ dumpRequest req)
+defHandler :: SomeException -> Application
+defHandler e req = return $ responseLBS status500 [] $ pack $ 
+            show e ++ " : " ++ dumpRequest
   where
-    dumpRequest req = unpack $ concat [requestMethod req, " ", 
+    dumpRequest = unpack $ concat [requestMethod req, " ", 
             rawPathInfo req, rawQueryString req]
-
-
